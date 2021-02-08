@@ -11,3 +11,4 @@ dependencies:
   - pip
   - pip:
     - eodms-api-client 
+    - wget

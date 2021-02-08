@@ -6,6 +6,7 @@
 
 import requests
 import xml.etree.ElementTree as ET
+import getpass
 
 # GetRecords POST request 
 def getRecords(max_records, end_date, lower_corner, upper_corner):
@@ -88,7 +89,7 @@ def submit_post(query):
         
     session = requests.Session()
     username = input("Enter your EODMS username: ")
-    password = input("Enter your EODMS password: ")
+    password = getpass.getpass("Enter your EODMS password: ")
     session.auth = (username, password)
 
     response = session.post(rest_url, data=str(query))
@@ -96,21 +97,27 @@ def submit_post(query):
 
 
 if __name__ == "__main__":
-    submit_order = False
 
-    bounding_box = {'lower_corner': '-76.3556, 44.9617', #lng-lat, string input
-                    'upper_corner': '-75.2466, 45.5371'}
+    #set to true to order imagery,
+    #link will be sent via email and
+    # will be avaible on the EODMS 
+    submit_order = True
+
+    #Coordinate for Admiralty Inlet
+    bounding_box = {'lower_corner': '-85, 73.6', #lng-lat, string input
+                    'upper_corner': '-84.23, 73'}
 
     date_range = [None, "2013-03-29Z"] #start date, end date, "YYYY-MM-DDZ"
 
     maxRecords = 10
 
     records = getRecords(maxRecords, date_range[1], bounding_box['lower_corner'], bounding_box['upper_corner'])
-
+    print("Number of Records: ", len(records))
     query = {
         "destinations": [], 
         "items": []
     }
+
     for record in records:
         query['items'].append(
                 {
