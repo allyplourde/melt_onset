@@ -1,0 +1,13 @@
+name: melt_onset
+channels:
+- conda-forge
+- defaults
+dependencies:
+  - python=3.6
+  - sentinelsat
+  - numpy
+  - pandas
+  - geopandas
+  - pip
+  - pip:
+    - eodms-api-client 

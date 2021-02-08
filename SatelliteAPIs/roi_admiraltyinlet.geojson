@@ -1,0 +1,10 @@
+{
+"type": "Feature", 
+"geometry": { 
+    "type": "MultiPolygon", 
+    "coordinates": [ [ [ [ 372917.0, 3585302.0 ], [ 372917.0, 3859352.0 ], [ 581760.0, 3859352.0 ], [ 581760.0, 3585302.0 ], [ 372917.0, 3585302.0 ] ] ] ] } },
+},
+"properties": { 
+    "roi_name": "CalderFootprint"    
+}
+}
