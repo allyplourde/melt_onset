@@ -6,14 +6,14 @@ import os
  
 if __name__ == "__main__":
 
-    download_path = 'C:/Users/Owner/repos/melt_onset/Imagery/R1'
+    download_path = 'J:/SCRATCH/aplourde/melt_onset/Imagery/R1/2000'
     FTP = ftplib.FTP('data.eodms-sgdot.nrcan-rncan.gc.ca')
     
     FTP.login()
 
     # set working directory to FTP directory provided in
     # EODMS delivery notification email
-    FTP.cwd('/public/carts/ec30ff36-c727-4f0e-bf5d-7766ff76be56')
+    FTP.cwd('/public/carts/c6d6c775-64fe-41b8-bf7c-736f0d26f293')
     os.chdir(download_path)
     print(FTP.pwd())
     
