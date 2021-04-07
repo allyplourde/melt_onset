@@ -8,6 +8,7 @@ dependencies:
   - numpy
   - pandas
   - geopandas
+  - matplotlib
   - pip
   - pip:
     - eodms-api-client 
