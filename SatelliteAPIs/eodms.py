@@ -147,9 +147,6 @@ def buildQuery(records):
     
     return query
 
-#def submit_post(query):
-#def submit_post(rec_id, collection_id):
-#def submit_post(record):
 def submit_post(query):
     rest_url = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi/order"
     response = session.post(rest_url, data=str(query))
@@ -166,10 +163,8 @@ if __name__ == "__main__":
     submit_order = False
 
     session = requests.Session()
-    #username = input("Enter your EODMS username: ")
-    #password = getpass.getpass("Enter your EODMS password: ")
-    username = "Allison Plourde"
-    password = "E3ur0Pae!"
+    username = input("Enter your EODMS username: ")
+    password = getpass.getpass("Enter your EODMS password: ")
     session.auth = (username, password)
 
     start_date = pandas.to_datetime("2010-03-01 00:00:00 GMT")
@@ -186,12 +181,6 @@ if __name__ == "__main__":
     bounding_box = {'lower_corner': '-85.000000 73.000000', #lng-lat, string input
                     'upper_corner': '-84.230000 73.600000'}
 
-
-
-    maxRecords = 1
-
-    records = getRecords(maxRecords, date_range[0], date_range[1], bounding_box['lower_corner'], bounding_box['upper_corner'])
-    print("Number of Records: ", len(records))
     """
 
     n = len(records)
@@ -210,5 +199,3 @@ if __name__ == "__main__":
 
     if submit_order:
         submit_post(query)
-        #submit_post(records[0], "Radarsat1")
-        #submit_post("X0501571")
