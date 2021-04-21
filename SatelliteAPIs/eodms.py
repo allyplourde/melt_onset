@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import getpass
 import pandas
 import json
+from osgeo import ogr
 
 # GetRecords POST request 
 def getRecordsfromXML(max_records, start_date, end_date, lower_corner, upper_corner):
@@ -87,13 +88,18 @@ def getRecordsfromXML(max_records, start_date, end_date, lower_corner, upper_cor
 
     return rec_id
 
-def getRecordsFromCSV():
+def getRecordsFromCSV(filename):
+    """ alternative method to build query from CSV file of reords
+        input:
+            filename - (string) path/name to .csv file containing records
+    """
+
     query = {
         "destinations": [], 
         "items": []
     }
     
-    results_csv = pandas.read_csv("Results2000.csv")
+    results_csv = pandas.read_csv(filename)
     im_info = results_csv["Image Info"]
 
     for row in im_info:
@@ -101,24 +107,48 @@ def getRecordsFromCSV():
         info = info.replace("] ","], ")
         info_dict = json.loads(info)
 
-        query['items'].append(
-                {
-                    "collectionId": info_dict["collectionID"], 
-                    "recordId": info_dict["imageID"]
-                })
+        query['items'].append({"collectionId": info_dict["collectionID"], 
+                                "recordId": info_dict["imageID"]})
     
     return query
 
-def getRecords(session, start_date, end_date):
-    query_url = '''https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi/search?collection=Radarsat1&query=CATALOG_IMAGE.THE_GEOM_4326+INTERSECTS+POLYGON+%28%28-84.6424242424242+73.9212121212121%2C-82.5187878787878+73.7563636363636%2C-85.0593939393939+71.7878787878788%2C-87.3672727272726+72.8545454545455%2C-84.6424242424242+73.9212121212121%29%29&resultField=RSAT1.BEAM_MNEMONIC&maxResults=5000&format=json'''
+def getRecords(session, start_date, end_date, coords):
+    """ query EODMS database for records within region and date range
+        input:
+            session - requests session for HTTP requests
+            start_date - (pandas datetime) find images after this date
+            end_date - (pandas datetime) find images before this date
+            coords - region on interest
+        output:
+            records - (list) records matchign search criteria
+    """
+
+    # convert coordiantes to string
+    polygon_coordinates = ''
+    for i in range(len(coords)):
+        polygon_coordinates += str(coords[i][0]) + '+' + str(coords[i][1])
+        if i < len(coords)-1:
+            polygon_coordinates += '%2C'
+
+    #query EODMS database
+    query_url = '''https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi/search?collection=Radarsat1&''' + \
+                '''query=CATALOG_IMAGE.THE_GEOM_4326+INTERSECTS+POLYGON+%28%28''' + \
+                    polygon_coordinates + '''%29%29&''' + \
+                '''resultField=RSAT1.BEAM_MNEMONIC&maxResults=5000&format=json'''
     response = session.get(query_url)
 
     rsp = response.content
     response_dict = json.loads(rsp.decode('utf-8'))
 
+
     results = response_dict['results']
-    print("A total of {} images were found for the ROI".format(len(results)))
-    records = []
+    n = len(results)    
+    if n == 1000:
+        print("Warning: limit of records has been reached, results may be incomplete")
+        print("Try reducing the region of interest to avoid reaching the query limit")
+
+    #Filter query results for specified daterange
+    records = []  #records to order
     for result in results:
         if result["isOrderable"]:
             for item in result["metadata2"]:
@@ -132,33 +162,56 @@ def getRecords(session, start_date, end_date):
     return records
 
 def buildQuery(records):
-    query = {
-        "destinations": [], 
-        "items": []
-    }
+    """ builds query to order records 
+        input:
+            records - (list) record and collection ids from EODMS query result
+        output:
+            query - (dict) dictionary of records
+    """
+
+    query = {"destinations": [], "items": []}
 
     for item in records:
-
-        query['items'].append(
-                    {
-                        "collectionId": item[1], 
-                        "recordId": item[0]
-                    })
+        query['items'].append({"collectionId": item[1], "recordId": item[0]})
     
     return query
 
 def submit_post(query):
+    """ submits order to EODMS
+        input:
+            query - (dict) query with record and collection ids
+    """
+
     rest_url = "https://www.eodms-sgdot.nrcan-rncan.gc.ca/wes/rapi/order"
     response = session.post(rest_url, data=str(query))
-    
-    print(response.content) 
+
+def extractCoords(filename):
+    """ extracts coordinate geometry from an ESRI shapefile
+        input:
+            filename - (string) path+name of file
+        output:
+            coords - (list) list of polygon coordinates
+    """
+
+    shpfile = ogr.Open(filename)
+    shape = shpfile.GetLayer(0)
+    feature = shape.GetFeature(0)
+
+    jsn = feature.ExportToJson()
+    dct = json.loads(jsn)
+
+    geom = dct["geometry"]
+    coords = geom["coordinates"]
+
+    coordinates = coords[0]
+
+    return coordinates
 
 
 if __name__ == "__main__":
 
     #set to true to order imagery,
-    #link will be sent via email and
-    # will be avaible on the EODMS 
+    #(link will be sent via email)
 
     submit_order = False
 
@@ -167,35 +220,23 @@ if __name__ == "__main__":
     password = getpass.getpass("Enter your EODMS password: ")
     session.auth = (username, password)
 
+    #Date range
     start_date = pandas.to_datetime("2010-03-01 00:00:00 GMT")
-    print(start_date)
     end_date = pandas.to_datetime("2010-07-31 00:00:00 GMT")
-    print(end_date)
-
-    records = getRecords(session, start_date, end_date)
 
 
-    
-    """
-    #Coordinate for Admiralty Inlet
-    bounding_box = {'lower_corner': '-85.000000 73.000000', #lng-lat, string input
-                    'upper_corner': '-84.230000 73.600000'}
+    #Extract Coordinates from Shapefile
+    filename = 'ROI_AI/ROI_AI.shp'
+    coords = extractCoords(filename)
 
-    """
+    #Query EODMS
+    records = getRecords(session, start_date, end_date, coords)
 
     n = len(records)
-    print("Found {} records.".format(n))
+    print("Preparing {} records for order.".format(n))
+     
+    orderquery = buildQuery(records)
 
-    n_orders = round(n/50)
-    orders = []
-    for i in range(n_orders):
-        if i == n_orders - 1:
-            orders.append(records[i*50:])
-        else:
-            orders.append(records[i*50:i*50+49])
-            print(i*50,i*50+49)
-    
-    query = buildQuery(records)
-
+    #Submit Order
     if submit_order:
-        submit_post(query)
+        submit_post(orderquery)
